@@ -11,7 +11,7 @@ import (
 )
 
 var nekoXSubscriptionDomain = "nachonekodayo.sekai.icu"
-var nekoXSubscriptionDohs = []string{
+var subscriptionDoh = []string{
 	"https://1.1.1.1/dns-query",
 	"https://1.0.0.1/dns-query",
 	"https://101.101.101.101/dns-query",
@@ -23,26 +23,27 @@ var nekoXSubscriptionDohs = []string{
 var _subscribeGood int32 = 0
 var _subscribeBad int32 = 0
 
-func getNekoXString() string {
+func getPublicRelay() string {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 
-	in := make(chan string, len(nekoXSubscriptionDohs))
-	out := make(chan string, 0)
+	in := make(chan string, len(subscriptionDoh))
+	out := make(chan string)
 
 	for i := 0; i < 10; i++ {
-		go getNekoXStringWorker(ctx, in, out, cancel)
+		go getPublicProxyWorker(ctx, in, out, cancel)
 	}
 
 	go func() {
-		for _, doh := range nekoXSubscriptionDohs {
+		for _, doh := range subscriptionDoh {
 			in <- doh
 		}
 	}()
 
+	defer cancel()
 	return <-out
 }
 
-func getNekoXStringWorker(ctx context.Context, in, out chan string, cancel context.CancelFunc) {
+func getPublicProxyWorker(ctx context.Context, in, out chan string, cancel context.CancelFunc) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -50,8 +51,7 @@ func getNekoXStringWorker(ctx context.Context, in, out chan string, cancel conte
 		case doh := <-in:
 			ret := getTXTUsingDoH(ctx, doh)
 			if _, err := base64.RawURLEncoding.DecodeString(ret); err != nil || ret == "" {
-				// fmt.Println(err, ret, doh)
-				if atomic.AddInt32(&_subscribeBad, 1) == int32(len(nekoXSubscriptionDohs)) {
+				if atomic.AddInt32(&_subscribeBad, 1) == int32(len(subscriptionDoh)) {
 					cancel()
 					out <- ""
 					return

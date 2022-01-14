@@ -1,7 +1,3 @@
-module NekoXProxy
+module relaygram
 
-go 1.16
-
-require (
-	github.com/gorilla/websocket v1.4.2
-)
+go 1.17

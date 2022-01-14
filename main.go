@@ -5,31 +5,31 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
-var nekoXProxyString string
-
-var nekoXProxyBaseDomain string
-var nekoXProxyDomains []string
+var proxyBaseDomain string
+var proxyDomains []string
 
 var client *http.Client
 
 func main() {
-	listen := flag.String("l", "127.0.0.1:26641", "HttpProxy listen port")
-	_nekoXProxyString := flag.String("p", "", "NekoX Proxy URL (keep empty if you don't know)")
+
+	listen := *flag.String("l", getEnv("LISTEN", "127.0.0.1:26641"), "HttpProxy listen addr")
+	proxy := *flag.String("p", getEnv("PROXY", ""), "Proxy URL (keep empty if you don't know)")
 	flag.Parse()
 
 	var ok bool
-	if *_nekoXProxyString != "" {
-		ok = parseNekoXString(base64.RawURLEncoding.EncodeToString([]byte(*_nekoXProxyString)))
+	if proxy != "" {
+		ok = parseRelayProxy(base64.RawURLEncoding.EncodeToString([]byte(proxy)))
 	} else {
-		log.Println("Getting NekoX public proxy...")
-		ok = parseNekoXString(getNekoXString())
+		log.Println("Getting public proxy...")
+		ok = parseRelayProxy(getPublicRelay())
 	}
 
 	if !ok {
-		log.Println("Failed to parse NekoX proxy.")
+		log.Println("Failed to parse proxy.")
 		return
 	}
 
@@ -37,10 +37,17 @@ func main() {
 
 	http.HandleFunc("/", relay)
 	server := &http.Server{
-		Addr:         *listen,
+		Addr:         listen,
 		WriteTimeout: 10 * time.Second,
 	}
 
-	log.Println("Telegram HTTP Proxy started at", *listen)
+	log.Println("HTTP Proxy started at", listen)
 	server.ListenAndServe()
+}
+
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }

@@ -9,8 +9,7 @@ import (
 
 var mapper = make(map[string]int)
 
-func parseNekoXString(a string) bool {
-	// fmt.Println(a)
+func parseRelayProxy(a string) bool {
 	b, _ := base64.RawURLEncoding.DecodeString(a)
 	url, err := url.Parse(string(b))
 	if err != nil {
@@ -20,8 +19,8 @@ func parseNekoXString(a string) bool {
 	pldstr, _ := base64.RawURLEncoding.DecodeString(url.Query().Get("payload"))
 	plds := strings.Split(string(pldstr), ",")
 
-	nekoXProxyBaseDomain = url.Host
-	nekoXProxyDomains = append([]string{""}, plds...)
+	proxyBaseDomain = url.Host
+	proxyDomains = append([]string{""}, plds...)
 
 	putmapper := func(ip string, dc int) {
 		mapper[ip] = dc
@@ -65,7 +64,7 @@ func dc2wsurl(dc int) string {
 	if dc == 0 {
 		return ""
 	}
-	return fmt.Sprintf("https://%s.%s/api", nekoXProxyDomains[dc], nekoXProxyBaseDomain)
+	return fmt.Sprintf("https://%s.%s/api", proxyDomains[dc], proxyBaseDomain)
 }
 
 func ip2dc(ip string) int {

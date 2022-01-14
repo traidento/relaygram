@@ -26,7 +26,7 @@ func relay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for k, _ := range a.Header {
+	for k := range a.Header {
 		w.Header().Set(k, a.Header.Get(k))
 	}
 

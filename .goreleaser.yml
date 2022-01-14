@@ -1,0 +1,41 @@
+project_name: relaygram
+builds:
+  - env: [CGO_ENABLED=0]
+    goos:
+      - linux
+      - windows
+      - darwin
+      - freebsd
+    goarch:
+      - "386"
+      - "amd64"
+      - "arm"
+      - "arm64"
+      - "mips"
+    gomips:
+      - hardfloat
+      - softfloat
+
+    mod_timestamp: '{{ .CommitTimestamp }}'
+dockers:
+- image_templates: ["ghcr.io/traidento/relaygram:{{ .Version }}"]
+  use: buildx
+  dockerfile: Dockerfile
+  build_flag_templates:
+  - --label=org.opencontainers.image.title={{ .ProjectName }}
+  - --label=org.opencontainers.image.description=NekoX compatible WebSocket relay
+  - --label=org.opencontainers.image.url=https://github.com/traidento/relaygram
+  - --label=org.opencontainers.image.source=https://github.com/traidento/relaygram
+  - --label=org.opencontainers.image.version={{ .Version }}
+  - --label=org.opencontainers.image.created={{ time "2022-01-14T21:43:08+08:00" }}
+  - --label=org.opencontainers.image.revision={{ .FullCommit }}
+  - --label=org.opencontainers.image.licenses=BSD-2-Clause
+nfpms:
+- maintainer: mochaaP <self@mochaa.ws>
+  description: NekoX compatible WebSocket relay
+  homepage: https://github.com/traidento/relaygram
+  license: BSD-2-Clause
+  formats:
+  - deb
+  - rpm
+  - apk
