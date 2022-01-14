@@ -1,6 +1,6 @@
 # Relaygram
 
-NekoX compatible WebSocket relay
+NekoX compatible Telegram relay
 
 ## Usage
 
