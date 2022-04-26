@@ -74,27 +74,26 @@ func parseNekoXString(a string) bool {
 	return true
 }
 
-func dc2wsurl(dc int) string {
-	if dc == 0 {
-		return ""
-	}
-	return fmt.Sprintf("https://%s.%s/api", nekoXProxyDomains[dc], nekoXProxyBaseDomain)
-}
-
-func ip2dc(ip string) int {
+func ip2dc(ip string) (int, bool) {
 	for k, v := range mapper {
 		if ip == k {
-			return v
+			return v, true
 		}
 	}
 	for k, v := range mapper {
 		if strings.HasPrefix(ip, k) {
-			return v
+			return v, true
 		}
 	}
-	return 0
+	return 0, false
 }
 
-func ip2wsurl(ip string) string {
-	return dc2wsurl(ip2dc(ip))
+func ip2wsurl(ip string) (string, bool) {
+	dc, found := ip2dc(ip)
+	if !found {
+		return "", false
+	}
+	url := fmt.Sprintf("https://%s.%s/api", nekoXProxyDomains[dc], nekoXProxyBaseDomain)
+
+	return url, true
 }

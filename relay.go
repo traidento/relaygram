@@ -3,15 +3,17 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 )
 
 func relay(w http.ResponseWriter, r *http.Request) {
-	u := r.URL
-	reqip := u.Hostname()
-
-	wsurl := ip2wsurl(reqip)
-	// fmt.Println(wsurl)
+	reqip := r.URL.Hostname()
+	wsurl, found := ip2wsurl(reqip)
+	if !found {
+		log.Println("New DC address found:", reqip)
+		return
+	}
 
 	var body io.Reader
 	if r.Method == "POST" {
