@@ -23,9 +23,6 @@ func main() {
 	var ok bool
 	if *_nekoXProxyString != "" {
 		ok = parseNekoXString(base64.RawURLEncoding.EncodeToString([]byte(*_nekoXProxyString)))
-	} else {
-		log.Println("Getting NekoX public proxy...")
-		ok = parseNekoXString(getNekoXString())
 	}
 
 	if !ok {
