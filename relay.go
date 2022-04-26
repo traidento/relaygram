@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 )
 
 func relay(w http.ResponseWriter, r *http.Request) {
 	u := r.URL
-	reqip := strings.Split(u.Host, ":")[0]
+	reqip := u.Hostname()
+
 	wsurl := ip2wsurl(reqip)
 	// fmt.Println(wsurl)
 
