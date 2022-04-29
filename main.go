@@ -1,39 +1,70 @@
 package main
 
 import (
+	"encoding/base64"
+	"errors"
 	"flag"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"syscall"
 	"time"
+
+	"github.com/asergeyev/nradix"
 )
 
-var nekoXProxyString string
-
-var nekoXProxyBaseDomain string
-var nekoXProxyDomains []string
-
-var client *http.Client
-
 func main() {
-	listen := flag.String("l", "127.0.0.1:26641", "HttpProxy listen port")
-	_nekoXProxyString := flag.String("p", "", "NekoX Proxy URL")
+	listen := flag.String("l", "127.0.0.1:26641", "listen address")
 	flag.Parse()
 
-	var ok bool
-	if *_nekoXProxyString != "" {
-		ok = parseNekoXString(*_nekoXProxyString)
-	}
-
-	if !ok {
-		log.Println("NekoX Proxy URL is required")
+	url := flag.Arg(0)
+	if url == "" {
+		fmt.Fprintln(os.Stderr, "NekoX Proxy URL is required")
 		return
 	}
 
-	client = &http.Client{
+	router, err := NewRouter(url)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	client := &http.Client{
 		Timeout: 25 * 2 * time.Second,
 	}
 
-	http.HandleFunc("/", relay)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		reqip := r.URL.Hostname()
+		wsurl, found := router.IP2URL(reqip)
+		if !found {
+			log.Println("New DC address found:", reqip)
+			return
+		}
+
+		req, _ := http.NewRequest(r.Method, wsurl, r.Body)
+		resp, err := client.Do(req)
+		if err != nil {
+			w.WriteHeader(502)
+			log.Println(err)
+			return
+		}
+
+		for k, v := range resp.Header {
+			w.Header()[k] = v
+		}
+		w.WriteHeader(resp.StatusCode)
+
+		_, err = io.Copy(w, resp.Body)
+		// ignore all broken pipe
+		if err != nil && !errors.Is(err, syscall.EPIPE) {
+			log.Println(err)
+		}
+	})
+
 	server := &http.Server{
 		Addr:         *listen,
 		WriteTimeout: 25 * 2 * time.Second,
@@ -41,5 +72,80 @@ func main() {
 	}
 
 	log.Println("Telegram HTTP Proxy started at", *listen)
-	server.ListenAndServe()
+	log.Fatal(server.ListenAndServe())
+}
+
+type Router struct {
+	baseDomain      string
+	subDomainMapper []string
+	dcMapper        *nradix.Tree
+}
+
+func NewRouter(nekoXURL string) (*Router, error) {
+	url, err := url.ParseRequestURI(nekoXURL)
+	if err != nil {
+		return nil, err
+	}
+
+	pldstr, _ := base64.RawURLEncoding.DecodeString(url.Query().Get("payload"))
+
+	router := Router{
+		baseDomain:      url.Host,
+		subDomainMapper: strings.Split(string(pldstr), ","),
+		dcMapper:        nradix.NewTree(0),
+	}
+
+	router.initDcMapper()
+	return &router, nil
+}
+
+func (router *Router) initDcMapper() {
+	router.dcMapper.AddCIDR("149.154.175.5", 1)
+	router.dcMapper.AddCIDR("95.161.76.100", 2)
+	router.dcMapper.AddCIDR("149.154.175.100", 3)
+	router.dcMapper.AddCIDR("149.154.167.91", 4)
+	router.dcMapper.AddCIDR("149.154.167.92", 4)
+	router.dcMapper.AddCIDR("149.154.171.5", 5)
+	router.dcMapper.AddCIDR("2001:b28:f23d:f001::a", 1)
+	router.dcMapper.AddCIDR("2001:67c:4e8:f002::a", 2)
+	router.dcMapper.AddCIDR("2001:b28:f23d:f003::a", 3)
+	router.dcMapper.AddCIDR("2001:67c:4e8:f004::a", 4)
+	router.dcMapper.AddCIDR("2001:b28:f23f:f005::a", 5)
+	router.dcMapper.AddCIDR("149.154.161.144", 2)
+	router.dcMapper.AddCIDR("149.154.167.0/24", 2)
+	router.dcMapper.AddCIDR("149.154.175.1", 3)
+	router.dcMapper.AddCIDR("91.108.4.0/24", 4)
+	router.dcMapper.AddCIDR("149.154.164.0/24", 4)
+	router.dcMapper.AddCIDR("149.154.165.0/24", 4)
+	router.dcMapper.AddCIDR("149.154.166.0/24", 4)
+	router.dcMapper.AddCIDR("91.108.56.0/24", 5)
+	router.dcMapper.AddCIDR("2001:b28:f23d:f001::d", 1)
+	router.dcMapper.AddCIDR("2001:67c:4e8:f002::d", 2)
+	router.dcMapper.AddCIDR("2001:b28:f23d:f003::d", 3)
+	router.dcMapper.AddCIDR("2001:67c:4e8:f004::d", 4)
+	router.dcMapper.AddCIDR("2001:b28:f23f:f005::d", 5)
+	router.dcMapper.AddCIDR("149.154.175.40", 6)
+	router.dcMapper.AddCIDR("149.154.167.40", 7)
+	router.dcMapper.AddCIDR("149.154.175.117", 8)
+	router.dcMapper.AddCIDR("2001:b28:f23d:f001::e", 6)
+	router.dcMapper.AddCIDR("2001:67c:4e8:f002::e", 7)
+	router.dcMapper.AddCIDR("2001:b28:f23d:f003::e", 8)
+
+	router.dcMapper.AddCIDR("2001:b28:f23d:f001::b", 1)
+	router.dcMapper.AddCIDR("2001:67c:4e8:f002::b", 2)
+	router.dcMapper.AddCIDR("2001:b28:f23d:f003::b", 3)
+	router.dcMapper.AddCIDR("2001:67c:4e8:f004::b", 4)
+	router.dcMapper.AddCIDR("2001:b28:f23f:f005::b", 5)
+
+	router.dcMapper.AddCIDR("149.154.175.55", 1)
+}
+
+func (router *Router) IP2URL(ip string) (string, bool) {
+	dc, err := router.dcMapper.FindCIDR(ip)
+	if dc == nil || err != nil {
+		return "", false
+	}
+	url := fmt.Sprintf("https://%s.%s/api", router.subDomainMapper[dc.(int)-1], router.baseDomain)
+
+	return url, true
 }
