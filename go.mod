@@ -2,6 +2,4 @@ module NekoXProxy
 
 go 1.16
 
-require (
-	github.com/gorilla/websocket v1.4.2
-)
+require github.com/asergeyev/nradix v0.0.0-20170505151046-3872ab85bb56

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"log"
 	"net/http"
+	"syscall"
 )
 
 func relay(w http.ResponseWriter, r *http.Request) {
@@ -18,7 +20,7 @@ func relay(w http.ResponseWriter, r *http.Request) {
 	resp, err := client.Do(req)
 	if err != nil {
 		w.WriteHeader(502)
-		log.Println(502, err)
+		log.Println(err)
 		return
 	}
 
@@ -27,5 +29,9 @@ func relay(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(resp.StatusCode)
 
-	io.Copy(w, resp.Body)
+	_, err = io.Copy(w, resp.Body)
+	// ignore all broken pipe
+	if err != nil && !errors.Is(err, syscall.EPIPE) {
+		log.Println(err)
+	}
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"flag"
 	"log"
 	"net/http"
@@ -22,7 +21,7 @@ func main() {
 
 	var ok bool
 	if *_nekoXProxyString != "" {
-		ok = parseNekoXString(base64.RawURLEncoding.EncodeToString([]byte(*_nekoXProxyString)))
+		ok = parseNekoXString(*_nekoXProxyString)
 	}
 
 	if !ok {
@@ -38,7 +37,7 @@ func main() {
 	server := &http.Server{
 		Addr:         *listen,
 		WriteTimeout: 25 * 2 * time.Second,
-		ReadTimeout: 25 * 2 * time.Second,
+		ReadTimeout:  25 * 2 * time.Second,
 	}
 
 	log.Println("Telegram HTTP Proxy started at", *listen)
