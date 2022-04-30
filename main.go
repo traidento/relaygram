@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/asergeyev/nradix"
+	"github.com/lucas-clemente/quic-go/http3"
 )
 
 func main() {
@@ -33,8 +34,12 @@ func main() {
 		return
 	}
 
+	roundTripper := &http3.RoundTripper{}
+	defer roundTripper.Close() // So the QUIC can do a proper connection shutdown
+
 	client := &http.Client{
-		Timeout: 25 * 2 * time.Second,
+		Transport: roundTripper,
+		Timeout:   25 * 2 * time.Second,
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
