@@ -1,6 +1,10 @@
 project_name: relaygram
 builds:
   - env: [CGO_ENABLED=0]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
     goos:
       - linux
       - windows
