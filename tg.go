@@ -10,7 +10,11 @@ import (
 var mapper = make(map[string]int)
 
 func parseRelayProxy(a string) bool {
-	b, _ := base64.RawURLEncoding.DecodeString(a)
+	if a == "" {
+		return false
+	}
+
+	b, _ := base64.StdEncoding.DecodeString(a)
 	url, err := url.Parse(string(b))
 	if err != nil {
 		return false
@@ -21,6 +25,8 @@ func parseRelayProxy(a string) bool {
 
 	proxyBaseDomain = url.Host
 	proxyDomains = append([]string{""}, plds...)
+
+	// fmt.Println(url.String())
 
 	putmapper := func(ip string, dc int) {
 		mapper[ip] = dc
