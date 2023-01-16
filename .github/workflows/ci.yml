@@ -2,19 +2,19 @@ name: CI
 
 on:
   push:
-  
+
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Build with xgo
-      uses: crazy-max/ghaction-xgo@v1
+      uses: crazy-max/ghaction-xgo@v2
       with:
         xgo_version: latest
-        go_version: 1.18
+        go_version: 1.19
         dest: dist
         prefix: relaygram
         targets: windows/386,windows/amd64,windows/arm64,linux/386,linux/amd64,linux/arm,linux/arm64,darwin/amd64,darwin/arm64
