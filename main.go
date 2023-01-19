@@ -1,21 +1,20 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
-	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
+	"math"
+	"net"
 	"net/url"
 	"os"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/asergeyev/nradix"
-	"github.com/lucas-clemente/quic-go/http3"
+	"nhooyr.io/websocket"
 )
 
 func main() {
@@ -34,50 +33,39 @@ func main() {
 		return
 	}
 
-	roundTripper := &http3.RoundTripper{}
-	defer roundTripper.Close() // So the QUIC can do a proper connection shutdown
-
-	client := &http.Client{
-		Transport: roundTripper,
-		Timeout:   25 * 2 * time.Second,
-	}
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		reqip := r.URL.Hostname()
-		wsurl, found := router.IP2URL(reqip)
+	dialer := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if network != "tcp" {
+			return nil, fmt.Errorf("tcp only: %s", network)
+		}
+		wsurl, found := router.IP2URL(addr)
 		if !found {
-			log.Println("New DC address found:", reqip)
-			return
+			return nil, fmt.Errorf("New DC address found: %s", addr)
 		}
 
-		req, _ := http.NewRequest(r.Method, wsurl, r.Body)
-		resp, err := client.Do(req)
+		dial_ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		c, _, err := websocket.Dial(dial_ctx, wsurl,
+			&websocket.DialOptions{
+				Subprotocols: []string{"binary"},
+				// disable compression for faster media download
+				CompressionMode: websocket.CompressionDisabled,
+			})
 		if err != nil {
-			w.WriteHeader(502)
-			log.Println(err)
-			return
+			return nil, err
 		}
-
-		for k, v := range resp.Header {
-			w.Header()[k] = v
-		}
-		w.WriteHeader(resp.StatusCode)
-
-		_, err = io.Copy(w, resp.Body)
-		// ignore all broken pipe
-		if err != nil && !errors.Is(err, syscall.EPIPE) {
-			log.Println(err)
-		}
-	})
-
-	server := &http.Server{
-		Addr:         *listen,
-		WriteTimeout: 25 * 2 * time.Second,
-		ReadTimeout:  25 * 2 * time.Second,
+		c.SetReadLimit(math.MaxInt64 - 1) // disable the buggy limitReader
+		return websocket.NetConn(ctx, c, websocket.MessageBinary), nil
 	}
 
-	log.Println("Telegram HTTP Proxy started at", *listen)
-	log.Fatal(server.ListenAndServe())
+	server := Server{Dialer: dialer}
+
+	l, err := net.Listen("tcp", *listen)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer l.Close()
+	log.Println("Telegram Socks5 Proxy started at", *listen)
+	log.Fatal(server.Serve(l))
 }
 
 type Router struct {
@@ -145,12 +133,17 @@ func (router *Router) initDcMapper() {
 	router.dcMapper.AddCIDR("149.154.175.55", 1)
 }
 
-func (router *Router) IP2URL(ip string) (string, bool) {
+func (router *Router) IP2URL(addr string) (string, bool) {
+	ip, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		panic(err.Error())
+	}
 	dc, err := router.dcMapper.FindCIDR(ip)
 	if dc == nil || err != nil {
 		return "", false
 	}
-	url := fmt.Sprintf("https://%s.%s/api", router.subDomainMapper[dc.(int)-1], router.baseDomain)
+	url := fmt.Sprintf("wss://%s.%s/api", router.subDomainMapper[dc.(int)-1], router.baseDomain)
+	log.Printf("new connection to DC%d (%s)\n", dc, addr)
 
 	return url, true
 }
