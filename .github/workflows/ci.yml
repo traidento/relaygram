@@ -10,8 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Build with xgo
-      uses: crazy-max/ghaction-xgo@v3
+    - uses: crazy-max/ghaction-xgo@v3
       with:
         xgo_version: latest
         go_version: 1.21

@@ -21,16 +21,3 @@ builds:
       - softfloat
 
     mod_timestamp: '{{ .CommitTimestamp }}'
-dockers:
-- image_templates: ["ghcr.io/traidento/relaygram:{{ .Version }}"]
-  use: buildx
-  dockerfile: Dockerfile
-  build_flag_templates:
-  - --label=org.opencontainers.image.title={{ .ProjectName }}
-  - --label=org.opencontainers.image.description=NekoX compatible Telegram relay
-  - --label=org.opencontainers.image.url=https://github.com/traidento/relaygram
-  - --label=org.opencontainers.image.source=https://github.com/traidento/relaygram
-  - --label=org.opencontainers.image.version={{ .Version }}
-  - --label=org.opencontainers.image.created={{ time "2022-01-14T21:43:08+08:00" }}
-  - --label=org.opencontainers.image.revision={{ .FullCommit }}
-  - --label=org.opencontainers.image.licenses=BSD-2-Clause
