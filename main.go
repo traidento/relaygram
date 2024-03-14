@@ -16,13 +16,13 @@ var client *http.Client
 
 func main() {
 
-	listen := *flag.String("l", getEnv("LISTEN", "127.0.0.1:26641"), "HttpProxy listen addr")
-	proxy := *flag.String("p", getEnv("PROXY", ""), "Proxy URL (keep empty if you don't know)")
+	listen := flag.String("l", getEnv("LISTEN", "127.0.0.1:26641"), "HttpProxy listen addr")
+	proxy := flag.String("p", getEnv("PROXY", ""), "Proxy URL (keep empty if you don't know)")
 	flag.Parse()
 
 	var ok bool
-	if proxy != "" {
-		ok = parseRelayProxy(base64.RawURLEncoding.EncodeToString([]byte(proxy)))
+	if proxy != nil && *proxy != "" {
+		ok = parseRelayProxy(base64.RawURLEncoding.EncodeToString([]byte(*proxy)))
 	} else {
 		log.Println("Getting public proxy...")
 		ok = parseRelayProxy(getPublicRelay())
@@ -37,11 +37,11 @@ func main() {
 
 	http.HandleFunc("/", relay)
 	server := &http.Server{
-		Addr:         listen,
+		Addr:         *listen,
 		WriteTimeout: 10 * time.Second,
 	}
 
-	log.Println("HTTP Proxy started at", listen)
+	log.Println("HTTP Proxy started at", *listen)
 	server.ListenAndServe()
 }
 

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-var nekoXSubscriptionDomain = "nachonekodayo.sekai.icu"
+var nekoXSubscriptionDomain = "_tg.chapro.xyz"
 var subscriptionDoh = []string{
 	"https://1.1.1.1/dns-query",
 	"https://1.0.0.1/dns-query",
