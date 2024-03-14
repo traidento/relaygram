@@ -1,15 +1,15 @@
 package main
 
 import (
+	"log"
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 )
 
 func relay(w http.ResponseWriter, r *http.Request) {
 	u := r.URL
-	reqip := strings.Split(u.Host, ":")[0]
+	reqip := u.Hostname()
 	wsurl := ip2wsurl(reqip)
 	// fmt.Println(wsurl)
 
@@ -30,9 +30,9 @@ func relay(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(k, a.Header.Get(k))
 	}
 
-	// if a.StatusCode != 200 {
-	// 	log.Println(a.StatusCode, reqip, ip2dc(reqip), wsurl)
-	// }
+	if a.StatusCode != 200 {
+		log.Println(a.StatusCode, reqip, ip2dc(reqip), wsurl)
+	}
 
 	w.WriteHeader(a.StatusCode)
 
